@@ -1,0 +1,138 @@
+import codecs 
+from math import sqrt
+
+users2 = {"WangRui": {"Taylor Swift": 3, "PSY": 3, "Whitney Houston": 4},
+          "WangHuan": {"Taylor Swift": 3, "PSY": 1}}
+
+
+class recommender:
+    def __init__(self, data):
+
+        if type(data).__name__ == 'dict':
+            self.data = data
+            
+        self.frequencies = {}
+        self.deviations = {}
+    
+    def loadMovieDB(self,path='D:/python/'):
+	self.data={}
+	allMovieMessage={}
+	userMes=[]
+
+	i = 0
+
+	f = codecs.open(path + "Movie_Ratings.csv", 'r', 'utf-8')
+     
+	for line in f:
+	    i += 1
+	    recommend=[]
+	    if i==1:
+		userMessage = line.split(',')
+		userMessage.pop(0)
+		for user in userMessage:
+		    user = user.strip('"').strip('\n').encode('utf-8')
+		    userMes.append(user)
+	    else:
+		movieMessage = line.split(',')            
+		name = movieMessage[0].strip('"').encode('utf-8')
+		recommdList=movieMessage[1:]
+		for re in recommdList:
+		    re = re.strip('"').strip('\n')
+		    if re=='':
+			recommend.append('')
+		    else:
+			recommend.append(float(re))
+		allMovieMessage.setdefault(name,recommend)
+	f.close()
+	
+	for user in userMes:
+	    index = userMes.index(user)
+	    for name,recommends in allMovieMessage.items():
+		if recommends[index] == '':
+		    continue
+		else:
+		    self.data.setdefault(user,{})
+		    self.data[user].update({name:recommends[index]})
+	return self.data
+	      
+    def computeDeviations(self):
+        # 获取每位用户的评分数据
+        for ratings in self.data.values():
+            # 对于该用户的每个评分项（歌手、分数）
+            for (item, rating) in ratings.items():
+                self.frequencies.setdefault(item, {})
+                self.deviations.setdefault(item, {})
+                # 再次遍历该用户的每个评分项
+                for (item2, rating2) in ratings.items():
+                    if item != item2:
+                        # 将评分的差异保存到变量中
+                        self.frequencies[item].setdefault(item2, 0)
+                        self.deviations[item].setdefault(item2, 0.0)
+                        self.frequencies[item][item2] += 1
+                        self.deviations[item][item2] += rating - rating2
+        print 'self.frequencies1:{}\n'.format(self.frequencies)
+        print 'self.deviations1:{}\n'.format(self.deviations)
+    
+        for (item, ratings) in self.deviations.items():
+            for item2 in ratings:
+                ratings[item2] /= self.frequencies[item][item2]  
+                
+        print 'self.deviations2:{}\n'.format(self.deviations)
+
+    def slopeOneRecommendations(self, userRatings):
+        recommendations = {}
+        frequencies = {}
+        # 遍历目标用户的评分项（歌手、分数）
+        for (userItem, userRating) in userRatings.items():
+            # 对目标用户未评价的歌手进行计算
+            for (diffItem, diffRatings) in self.deviations.items():
+                if diffItem not in userRatings and userItem in self.deviations[diffItem]:
+                    freq = self.frequencies[diffItem][userItem]
+                    recommendations.setdefault(diffItem, 0.0)
+                    frequencies.setdefault(diffItem, 0)
+                    # 分子
+                    recommendations[diffItem] += (diffRatings[userItem] + userRating) * freq
+                    # 分母
+                    frequencies[diffItem] += freq
+    
+        recommendations = [(k, v / frequencies[k]) for (k, v) in recommendations.items()]
+        
+        # 排序并返回
+        recommendations.sort(key=lambda artistTuple: artistTuple[1], reverse=True)
+        
+        print 'recommendations:{}\n'.format(recommendations)
+        
+        return recommendations
+
+r = recommender(users)
+r.computeDeviations()
+r.slopeOneRecommendations(users['lyl'])
+
+
+## Movie_Ratings   
+r = recommender(0)
+r.loadMovieDB()
+
+
+myscore = {'Kazaam': 1.0, 'The Matrix': 5.0, 'Blade Runner': 5.0, 'The Happening': 2.0, 'Pootie Tang': 1.0, 'Snakes on a Plane': 3.0, 'Forest Gump': 5.0, 'Shawshank Redemption': 5.0, 'Jaws': 3.0,'Alien': 4.0}
+
+r.computeDeviations()
+r.slopeOneRecommendations(myscore)
+
+
+运行示例
+
+self.frequencies1:{'PSY': {'Taylor Swift': 2, 'Whitney Houston': 1}, 'Taylor Swift': {'PSY': 2, 'Whitney Houston': 1}, 'Whitney Houston': {'PSY': 1, 'Taylor Swift': 1}}
+
+self.deviations1:{'PSY': {'Taylor Swift': -2.0, 'Whitney Houston': -1.0}, 'Taylor Swift': {'PSY': 2.0, 'Whitney Houston': -1.0}, 'Whitney Houston': {'PSY': 1.0, 'Taylor Swift': 1.0}}
+
+self.deviations2:{'PSY': {'Taylor Swift': -1.0, 'Whitney Houston': -1.0}, 'Taylor Swift': {'PSY': 1.0, 'Whitney Houston': -1.0}, 'Whitney Houston': {'PSY': 1.0, 'Taylor Swift': 1.0}}
+
+recommendations:[('Whitney Houston', 3.0)]
+
+
+## Movie_Ratings 
+
+recommendations:[('Star Wars', 5.0), ('The Dark Knight', 4.747826086956522), ('Toy Story', 4.678571428571429), ('Pulp Fiction', 4.435185185185185), ('Old School', 4.4298245614035086), ('Gladiator', 4.428571428571429), ('Scarface', 4.363636363636363), ('Braveheart', 4.304347826086956), ('Spiderman', 4.014705882352941), ('Dodgeball', 3.992063492063492), ('Lord of the Rings', 3.9421487603305785), ('Avatar', 3.725), ('Napolean Dynamite', 3.3455882352941178), ('Village', 3.0217391304347827), ('You Got Mail', 2.150537634408602)]
+
+
